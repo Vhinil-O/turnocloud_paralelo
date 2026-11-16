@@ -1,5 +1,5 @@
 <template>
   <div>
-    <h1>TurnoCloud en funcionamiento</h1>
+    <NuxtPage />
   </div>
 </template>

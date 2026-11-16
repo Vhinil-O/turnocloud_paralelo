@@ -1,7 +1,6 @@
 [build]
-  base = "apps/web"
-  command = "npm run generate"
-  publish = ".output/public"
+  command = "npm run build --workspace=packages/shared && npm run generate --workspace=apps/web"
+  publish = "apps/web/.output/public"
 
 [build.environment]
   NODE_VERSION = "22"
