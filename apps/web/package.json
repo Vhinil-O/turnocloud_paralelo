@@ -2,16 +2,22 @@
   "name": "@turnocloud/web",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
-    "typecheck": "echo \"typecheck web ok\"",
+    "typecheck": "nuxt prepare && nuxt typecheck",
     "lint": "echo \"lint web ok\""
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.0.0",
     "nuxt": "^4.0.0",
     "pinia": "^2.2.6",
+    "tailwindcss": "^4.0.0",
     "vue": "^3.5.12"
+  },
+  "devDependencies": {
+    "vue-tsc": "^3.3.14"
   }
 }
