@@ -44,3 +44,13 @@ export interface TicketLog {
   notes: string | null;
   created_at: string;
 }
+
+export interface CreateTicketDTO {
+  service_id: number;
+  requester_name: string;
+}
+
+export interface TicketWithService extends Ticket {
+  service_code: string;
+  service_name: string;
+}
