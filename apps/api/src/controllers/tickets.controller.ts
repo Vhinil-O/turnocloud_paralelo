@@ -28,6 +28,12 @@ export const createTicket = async (req: Request, res: Response) => {
       res.status(404).json({ error: 'El servicio seleccionado no existe o está inactivo.' });
       return;
     }
+    if (error.message === 'ACTIVE_TICKET_EXISTS') {
+   res.status(409).json({
+     error: 'Ya tienes un turno activo en curso. Debes esperar a que sea atendido o cancelado para solicitar otro.'
+   });
+   return;
+ }
     console.error('Error al crear turno:', error);
     res.status(500).json({ error: 'Error interno al generar el turno.' });
   }
