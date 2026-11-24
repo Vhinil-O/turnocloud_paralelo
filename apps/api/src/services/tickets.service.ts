@@ -13,6 +13,20 @@ export class TicketsService {
     try {
       await client.query('BEGIN');
 
+            // Verificar que el solicitante no tenga ya un turno activo (pendiente o en_atencion)
+   const activeTicketRes = await client.query(
+     `SELECT id, ticket_number, status
+      FROM tickets
+      WHERE LOWER(TRIM(requester_name)) = LOWER($1)
+        AND status IN ('pendiente', 'en_atencion')
+      LIMIT 1`,
+     [data.requester_name.trim()]
+   );
+
+   if (activeTicketRes.rowCount && activeTicketRes.rowCount > 0) {
+     throw new Error('ACTIVE_TICKET_EXISTS');
+   }
+
       const serviceRes = await client.query(
         'SELECT id, code, name FROM services WHERE id = $1 AND active = true FOR UPDATE',
         [data.service_id]
