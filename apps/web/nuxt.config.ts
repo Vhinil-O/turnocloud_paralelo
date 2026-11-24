@@ -3,5 +3,10 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   nitro: {
     preset: 'static'
+  },
+  runtimeConfig: {
+    public: {
+      apiBase: 'http://localhost:3001'
+    }
   }
 })
