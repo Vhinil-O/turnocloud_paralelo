@@ -50,3 +50,74 @@ export const listTickets = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Error interno al obtener la cola de turnos.' });
   }
 };
+
+export const callNextTicket = async (req: Request, res: Response) => {
+  try {
+    const { operator_id, service_id } = req.body;
+
+    if (!operator_id || isNaN(Number(operator_id))) {
+      res.status(400).json({ error: 'El campo operator_id es obligatorio y debe ser numérico.' });
+      return;
+    }
+
+    if (service_id !== undefined && isNaN(Number(service_id))) {
+      res.status(400).json({ error: 'El campo service_id debe ser numérico.' });
+      return;
+    }
+
+    const ticket = await ticketsService.callNext({
+      operator_id: Number(operator_id),
+      service_id: service_id !== undefined ? Number(service_id) : undefined
+    });
+
+    if (!ticket) {
+      res.status(200).json({ message: 'No hay turnos pendientes en la fila.', ticket: null });
+      return;
+    }
+
+    res.json(ticket);
+  } catch (error: any) {
+    if (error.message === 'OPERATOR_NOT_FOUND') {
+      res.status(404).json({ error: 'El operador especificado no existe.' });
+      return;
+    }
+    console.error('Error al llamar siguiente turno:', error);
+    res.status(500).json({ error: 'Error interno al llamar el siguiente turno.' });
+  }
+};
+
+export const updateTicketStatus = async (req: Request, res: Response) => {
+  try {
+    const ticketId = Number(req.params.id);
+    const { status, operator_id, notes } = req.body;
+
+    if (isNaN(ticketId)) {
+      res.status(400).json({ error: 'El ID del turno en la URL debe ser numérico.' });
+      return;
+    }
+
+    if (status !== 'atendido' && status !== 'cancelado') {
+      res.status(400).json({ error: 'El campo status solo permite "atendido" o "cancelado".' });
+      return;
+    }
+
+    const updated = await ticketsService.updateStatus(ticketId, {
+      status,
+      operator_id: operator_id !== undefined ? Number(operator_id) : undefined,
+      notes
+    });
+
+    res.json(updated);
+  } catch (error: any) {
+    if (error.message === 'TICKET_NOT_FOUND') {
+      res.status(404).json({ error: 'El turno especificado no existe.' });
+      return;
+    }
+    if (error.message === 'TICKET_ALREADY_CLOSED') {
+      res.status(409).json({ error: 'El turno ya fue atendido o cancelado previamente.' });
+      return;
+    }
+    console.error('Error al actualizar estado del turno:', error);
+    res.status(500).json({ error: 'Error interno al actualizar el turno.' });
+  }
+};
