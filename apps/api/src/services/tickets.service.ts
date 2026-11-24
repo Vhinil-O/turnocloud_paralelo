@@ -13,7 +13,7 @@ export class TicketsService {
     try {
       await client.query('BEGIN');
 
-      // Verificar que el solicitante no tenga ya un turno activo (pendiente o en_atencion)
+            // Verificar que el solicitante no tenga ya un turno activo (pendiente o en_atencion)
    const activeTicketRes = await client.query(
      `SELECT id, ticket_number, status
       FROM tickets
@@ -116,6 +116,15 @@ export class TicketsService {
 
       if (operatorRes.rowCount === 0) {
         throw new Error('OPERATOR_NOT_FOUND');
+      }
+
+      const activeRes = await client.query(
+        `SELECT id FROM tickets WHERE operator_id = $1 AND status = 'en_atencion' LIMIT 1`,
+        [data.operator_id]
+      );
+
+      if ((activeRes.rowCount ?? 0) > 0) {
+        throw new Error('OPERATOR_BUSY');
       }
 
       const params: any[] = [];

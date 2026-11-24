@@ -28,7 +28,7 @@ export const createTicket = async (req: Request, res: Response) => {
       res.status(404).json({ error: 'El servicio seleccionado no existe o está inactivo.' });
       return;
     }
-    if (error.message === 'ACTIVE_TICKET_EXISTS') {
+   if (error.message === 'ACTIVE_TICKET_EXISTS') {
    res.status(409).json({
      error: 'Ya tienes un turno activo en curso. Debes esperar a que sea atendido o cancelado para solicitar otro.'
    });
@@ -85,6 +85,12 @@ export const callNextTicket = async (req: Request, res: Response) => {
   } catch (error: any) {
     if (error.message === 'OPERATOR_NOT_FOUND') {
       res.status(404).json({ error: 'El operador especificado no existe.' });
+      return;
+    }
+    if (error.message === 'OPERATOR_BUSY') {
+      res.status(409).json({
+        error: 'El operador ya tiene un turno en atención. Finalízalo antes de llamar otro.'
+      });
       return;
     }
     console.error('Error al llamar siguiente turno:', error);
