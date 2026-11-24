@@ -54,3 +54,14 @@ export interface TicketWithService extends Ticket {
   service_code: string;
   service_name: string;
 }
+
+export interface CallNextTicketDTO {
+  operator_id: number;
+  service_id?: number;
+}
+
+export interface UpdateTicketStatusDTO {
+  status: 'atendido' | 'cancelado';
+  operator_id?: number;
+  notes?: string;
+}

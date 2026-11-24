@@ -1,5 +1,11 @@
 import { pool } from '../config/db';
-import { CreateTicketDTO, Ticket, TicketWithService } from '@turnocloud/shared';
+import {
+  CreateTicketDTO,
+  CallNextTicketDTO,
+  UpdateTicketStatusDTO,
+  Ticket,
+  TicketWithService
+} from '@turnocloud/shared';
 
 export class TicketsService {
   async create(data: CreateTicketDTO): Promise<TicketWithService> {
@@ -82,5 +88,153 @@ export class TicketsService {
     );
 
     return result.rows;
+  }
+
+  async callNext(data: CallNextTicketDTO): Promise<TicketWithService | null> {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const operatorRes = await client.query(
+        'SELECT id FROM operators WHERE id = $1',
+        [data.operator_id]
+      );
+
+      if (operatorRes.rowCount === 0) {
+        throw new Error('OPERATOR_NOT_FOUND');
+      }
+
+      const params: any[] = [];
+      let serviceFilter = '';
+
+      if (data.service_id) {
+        params.push(data.service_id);
+        serviceFilter = `AND t.service_id = $${params.length}`;
+      }
+
+      const nextRes = await client.query(
+        `SELECT t.id
+         FROM tickets t
+         WHERE t.status = 'pendiente' ${serviceFilter}
+         ORDER BY t.created_at ASC
+         LIMIT 1
+         FOR UPDATE SKIP LOCKED`,
+        params
+      );
+
+      if (nextRes.rowCount === 0) {
+        await client.query('COMMIT');
+        return null;
+      }
+
+      const ticketId: number = nextRes.rows[0].id;
+
+      const updateRes = await client.query(
+        `UPDATE tickets
+         SET status = 'en_atencion',
+             operator_id = $1,
+             called_at = CURRENT_TIMESTAMP
+         WHERE id = $2
+         RETURNING *`,
+        [data.operator_id, ticketId]
+      );
+
+      const updatedTicket: Ticket = updateRes.rows[0];
+
+      await client.query(
+        `INSERT INTO ticket_logs (ticket_id, previous_status, new_status, operator_id, notes)
+         VALUES ($1, 'pendiente', 'en_atencion', $2, 'Turno llamado a ventanilla')`,
+        [updatedTicket.id, data.operator_id]
+      );
+
+      const serviceRes = await client.query(
+        'SELECT code, name FROM services WHERE id = $1',
+        [updatedTicket.service_id]
+      );
+
+      await client.query('COMMIT');
+
+      return {
+        ...updatedTicket,
+        service_code: serviceRes.rows[0].code,
+        service_name: serviceRes.rows[0].name
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async updateStatus(ticketId: number, data: UpdateTicketStatusDTO): Promise<TicketWithService> {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const currentRes = await client.query(
+        'SELECT * FROM tickets WHERE id = $1 FOR UPDATE',
+        [ticketId]
+      );
+
+      if (currentRes.rowCount === 0) {
+        throw new Error('TICKET_NOT_FOUND');
+      }
+
+      const currentTicket: Ticket = currentRes.rows[0];
+
+      if (currentTicket.status === 'atendido' || currentTicket.status === 'cancelado') {
+        throw new Error('TICKET_ALREADY_CLOSED');
+      }
+
+      const finalOperatorId = data.operator_id ?? currentTicket.operator_id ?? null;
+
+      const updateRes = await client.query(
+        `UPDATE tickets
+         SET status = $1,
+             operator_id = $2,
+             finished_at = CURRENT_TIMESTAMP
+         WHERE id = $3
+         RETURNING *`,
+        [data.status, finalOperatorId, ticketId]
+      );
+
+      const updatedTicket: Ticket = updateRes.rows[0];
+
+      const defaultNote =
+        data.status === 'atendido'
+          ? 'Atención finalizada por operador'
+          : 'Turno cancelado';
+
+      await client.query(
+        `INSERT INTO ticket_logs (ticket_id, previous_status, new_status, operator_id, notes)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          updatedTicket.id,
+          currentTicket.status,
+          data.status,
+          finalOperatorId,
+          data.notes?.trim() || defaultNote
+        ]
+      );
+
+      const serviceRes = await client.query(
+        'SELECT code, name FROM services WHERE id = $1',
+        [updatedTicket.service_id]
+      );
+
+      await client.query('COMMIT');
+
+      return {
+        ...updatedTicket,
+        service_code: serviceRes.rows[0].code,
+        service_name: serviceRes.rows[0].name
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 }
