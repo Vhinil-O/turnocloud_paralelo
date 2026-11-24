@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { pool } from './config/db';
 import servicesRoutes from './routes/services.routes';
 import ticketsRoutes from './routes/tickets.routes';
+import operatorsRoutes from './routes/operators.routes';
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.get('/api/health', async (_req, res) => {
 
 app.use('/api/services', servicesRoutes);
 app.use('/api/tickets', ticketsRoutes);
+app.use('/api/operators', operatorsRoutes);
 
 app.listen(port, () => {
   console.log(`API TurnoCloud escuchando en puerto ${port}`);
